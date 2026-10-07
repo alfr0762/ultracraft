@@ -127,7 +127,7 @@ namespace UltraBridge
             return At(SizeTable, key);
         }
 
-        /// <summary>The Feedbacker's Reflex: seconds added to the parry window.</summary>
+        /// <summary>The Feedbacker's Reflex: seconds added to the early-parry window (and 30% of it to the parry window).</summary>
         public static float ReflexBonus => AllWeapons ? At(ReflexTable, "arm0.reflex") : 0f;
 
         /// <summary>The Knuckleblaster's Demolition: how many blocks around a heavy punch it digs.</summary>
@@ -148,7 +148,12 @@ namespace UltraBridge
                 case "reel": return "x" + At(RateTable, key, level).ToString("0.##") + " speed";
                 case "payload":
                 case "shockwave": return Mathf.RoundToInt(At(SizeTable, key, level) * 100f) + "% size";
-                case "reflex": return "+" + Mathf.RoundToInt(At(ReflexTable, key, level) * 1000f) + " ms";
+                case "reflex":
+                    {
+                        // Plugin's ParryWindow gets 30% of the bonus, EarlyParry all of it
+                        float r = At(ReflexTable, key, level);
+                        return "+" + Mathf.RoundToInt(r * 300f) + " ms parry, +" + Mathf.RoundToInt(r * 1000f) + " ms early";
+                    }
                 case "sender": return "x" + At(SenderTable, key, level).ToString("0.#") + " return";
                 case "demolition": return At(DemolitionTable, key, level).ToString("0.#") + " blocks";
                 case "barbs": return "x" + At(BarbsTable, key, level).ToString("0.#") + " hook damage";
