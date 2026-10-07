@@ -1916,11 +1916,11 @@ namespace UltraBridge
 
         // ------------------------------------------------------------ Minecraft attacks, parries
 
-        // a mob's swing lands this long after Minecraft decides it (the parry flash shows meanwhile); a punch up to
-        // EarlyParry before the swing parries too
-        // (the Feedbacker's Reflex upgrade adds to both)
-        static float ParryWindow => 0.65f + ReflexBonus;
-        static float EarlyParry => 0.3f + ReflexBonus * 0.5f;
+        // a mob's swing lands this long after Minecraft decides it (the parry flash shows meanwhile); kept short so
+        // melee hits don't feel delayed. A punch up to EarlyParry before the swing parries too, which is where most of
+        // the leniency lives (the Feedbacker's Reflex upgrade mostly widens that, and only nudges the delay)
+        static float ParryWindow => 0.15f + ReflexBonus * 0.3f;
+        static float EarlyParry => 0.3f + ReflexBonus;
         // a projectile that reaches V1 hangs in front of it this long before it hits, so any of Minecraft's projectiles
         // (even a fast arrow) can be parried; a Feedbacker punch up to EarlyParry before it arrives parries it too
         const float ProjectileHold = 0.2f;
