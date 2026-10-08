@@ -29,7 +29,8 @@ final class UkProgress extends SavedData {
 		Codec.LONG.optionalFieldOf("nextBoss", 0L).forGetter(p -> p.nextBoss),
 		Codec.LONG.optionalFieldOf("earned", 0L).forGetter(p -> p.earned),
 		Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("upgrades", Map.of()).forGetter(p -> p.upgrades),
-		Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("equips", Map.of()).forGetter(p -> p.equips)
+		Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("equips", Map.of()).forGetter(p -> p.equips),
+		Codec.unboundedMap(Codec.STRING, Codec.LONG.listOf()).optionalFieldOf("bossRecords", Map.of()).forGetter(p -> p.bossRecords.encode())
 	).apply(i, UkProgress::new));
 	static final SavedDataType<UkProgress> TYPE = type("ultracraft_progress");
 
@@ -58,11 +59,13 @@ final class UkProgress extends SavedData {
 	final Map<String, Integer> upgrades = new HashMap<>();
 	/** Which weapons are equipped: weapon.rev0 = 0 off, 1 on, 2 the alternate (missing is on). */
 	final Map<String, Integer> equips = new HashMap<>();
+	/** Fastest clears for this player, by boss, difficulty and modifier set; absent in older saves. */
+	BossRecords bossRecords = new BossRecords();
 
 	UkProgress() {}
 
 	private UkProgress(int money, List<String> gear, Map<String, Integer> beaten, long bossClock, long nextBoss, long earned, Map<String, Integer> upgrades,
-		Map<String, Integer> equips) {
+		Map<String, Integer> equips, Map<String, List<Long>> bossRecords) {
 		this.upgrades.putAll(upgrades);
 		this.equips.putAll(equips);
 		UkUpgrades.migrate(this.upgrades);
@@ -72,6 +75,7 @@ final class UkProgress extends SavedData {
 		this.bossClock = bossClock;
 		this.nextBoss = nextBoss;
 		this.earned = earned;
+		this.bossRecords = BossRecords.decode(bossRecords);
 	}
 
 	/**

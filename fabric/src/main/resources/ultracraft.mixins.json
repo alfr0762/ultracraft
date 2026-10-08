@@ -15,7 +15,9 @@
     "MinecraftMixin",
     "MouseHandlerMixin",
     "MusicManagerMixin",
-    "WindowMixin"
+    "WindowMixin",
+    "TitleScreenMixin",
+    "TerminalButtonMixin"
   ],
   "mixins": [
     "AbstractArrowAccessor",

@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * As V1, Minecraft's keys still work (chat, commands, advancements, screenshots...), except where they would fight
  * ULTRAKILL for the same key. With guns out, clicks, number keys, E, Q and the wheel are ULTRAKILL's; with Minecraft
  * hands out (the hands key, V), they work as for Steve: attack and mine, use and place, hotbar, inventory, drop.
- * F is always the punch, so swap-offhand stays off; so does third person, which ULTRAKILL can't draw. A key rebound
+ * F is always the punch, so swap-offhand stays off. Perspective stays available for ULTRAKILL's V1 camera. A key rebound
  * to one of ULTRAKILL's controls (UcKeybindsScreen) is ULTRAKILL's too while the guns are out.
  */
 @Mixin(Minecraft.class)
@@ -29,7 +29,6 @@ public abstract class MinecraftMixin {
 			ci.cancel();
 			return;
 		}
-		ultracraft$off(options.keyTogglePerspective);
 		ultracraft$off(options.keySwapOffhand);
 		// at a shop's screen the clicks are the shop's (no mining or placing through it)
 		if (Ultracraft.shopTouch) {

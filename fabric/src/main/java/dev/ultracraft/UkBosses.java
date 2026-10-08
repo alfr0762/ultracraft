@@ -1,8 +1,11 @@
 package dev.ultracraft;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -121,6 +124,26 @@ final class UkBosses {
 	 */
 	private static net.minecraft.server.level.ServerBossEvent bar;
 	private static float barMax;
+	/** A recap measures this fight only, before the victory prize; later arrivals get a recap but no time record. */
+	private static final Map<UUID, RecordRun> recordRuns = new HashMap<>();
+	/** World time gives record results one-tick resolution without changing fightTicks or boss scheduling. */
+	private static ServerLevel recordLevel;
+	private static long recordStartedAt;
+	private static final class RecordRun {
+		final long earnedAtStart;
+		boolean fullFight;
+		int peakStyle;
+
+		RecordRun(ServerPlayer sp, boolean fullFight) {
+			earnedAtStart = Math.max(0L, UkProgress.get(sp).earned);
+			peakStyle = ServerOps.state(sp).rank;
+			this.fullFight = fullFight;
+		}
+
+		BossRecords.Result result(int ticks, long earnedNow) {
+			return new BossRecords.Result(ticks, Math.max(0, Math.min(7, peakStyle)), Math.max(0L, Math.max(0L, earnedNow) - earnedAtStart));
+		}
+	}
 
 	/** The player a boss is coming for, or null. */
 	static ServerPlayer target(net.minecraft.server.MinecraftServer server) {
@@ -414,6 +437,10 @@ final class UkBosses {
 		farTicks = 0;
 		bossAt = at;
 		phase = Phase.FIGHT;
+		recordRuns.clear();
+		recordLevel = level;
+		recordStartedAt = level.getGameTime();
+		observeRecords(sp, true);
 		LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.TRIGGERED);
 		if (bolt != null) {
 			bolt.snapTo(at.x, at.y, at.z);
@@ -467,6 +494,60 @@ final class UkBosses {
 		eclipseLevel = null;
 		eclipseFrom = -1;
 		strikeAt = null;
+		clearRecordRuns();
+	}
+
+	private static void clearRecordRuns() {
+		recordRuns.clear();
+		recordLevel = null;
+		recordStartedAt = 0L;
+	}
+
+	/** Rank transitions can be briefer than the boss tick: remember every STYLE event while participating. */
+	static void style(ServerPlayer sp, int rank) {
+		if (phase != Phase.FIGHT) return;
+		RecordRun run = recordRuns.get(sp.getUUID());
+		if (run != null && UcNet.isV1(sp) && bossAt != null && sp.position().distanceTo(bossAt) <= 128.0) {
+			run.peakStyle = Math.max(run.peakStyle, Math.max(0, Math.min(7, rank)));
+		}
+	}
+
+	private static void observeRecords(ServerPlayer sp, boolean start) {
+		// A player leaving and returning during a co-op fight still gets its prize, but not a full-fight record.
+		recordRuns.forEach((id, run) -> {
+			ServerPlayer o = sp.level().getServer().getPlayerList().getPlayer(id);
+			if (o == null || !UcNet.isV1(o) || o.level() != sp.level() || o.position().distanceTo(bossAt) > 128.0) run.fullFight = false;
+		});
+		for (ServerPlayer o : sp.level().getServer().getPlayerList().getPlayers()) {
+			if (!UcNet.isV1(o) || o.level() != sp.level() || (o != sp && o.position().distanceTo(bossAt) > 96.0)) continue;
+			RecordRun run = recordRuns.computeIfAbsent(o.getUUID(), ignored -> new RecordRun(o, start));
+			run.peakStyle = Math.max(run.peakStyle, ServerOps.state(o).rank);
+		}
+	}
+
+	private static void recap(ServerPlayer sp, UkProgress progress, Boss b, String key, RecordRun run, BossRecords.Result result) {
+		if (run == null || result == null) return;
+		boolean best = run.fullFight && progress.bossRecords.record(key, result);
+		if (best) progress.setDirty();
+		var text = Component.translatable("ultracraft.records.clear", b.name, BossRecords.time(result.ticks()), BossRecords.rank(result.peakStyle()),
+			String.format(Locale.ROOT, "%,d", result.earnedP())).withStyle(ChatFormatting.GRAY);
+		if (best) text.append(Component.literal(" ")).append(Component.translatable("ultracraft.records.new_best").withStyle(ChatFormatting.GOLD));
+		else if (!run.fullFight) text.append(Component.literal(" ")).append(Component.translatable("ultracraft.records.joined_late").withStyle(ChatFormatting.DARK_GRAY));
+		sp.sendSystemMessage(text);
+	}
+
+	/** Labels for a saved bucket: localized difficulty and modifiers, while the game's boss name stays intact. */
+	static Component recordLabel(String key) {
+		String[] parts = key.split("\\|", -1);
+		Boss b = byKey(parts[0]);
+		var traits = Component.empty();
+		if (parts[2].equals("-")) traits.append(Component.translatable("ultracraft.records.no_modifiers"));
+		else for (String mod : parts[2].split(",")) {
+			if (!traits.getString().isEmpty()) traits.append(", ");
+			traits.append(Component.translatable("ultracraft.records.modifier." + mod));
+		}
+		return Component.translatable("ultracraft.records.bucket", b == null ? parts[0] : b.name,
+			Component.translatable("ultracraft.records.difficulty." + parts[1]), traits);
 	}
 
 	/** STORMCALLER: a spot near V1 sparks for a second, then lightning strikes it. */
@@ -499,6 +580,7 @@ final class UkBosses {
 
 	private static void fight(ServerPlayer sp) {
 		fightTicks += 10;
+		observeRecords(sp, false);
 		updateBar(sp);
 		if (has("stormcaller")) storm(sp);
 		if (bossAt != null && sp.position().distanceTo(bossAt) > 96.0) farTicks += 10;
@@ -525,6 +607,11 @@ final class UkBosses {
 		Runnable arenaCleared = arenaWin;
 		ServerLevel level = sp.level();
 		UkProgress p = UkProgress.get(sp);
+		String recordKey = BossRecords.key(b.key, difficulty, mods.stream().map(Mod::key).toList());
+		Map<UUID, RecordRun> runs = new HashMap<>(recordRuns);
+		int clearTicks = recordLevel == null ? fightTicks : BossRecords.elapsedTicks(recordStartedAt, recordLevel.getGameTime());
+		RecordRun ownRun = runs.get(sp.getUUID());
+		BossRecords.Result ownResult = ownRun == null ? null : ownRun.result(clearTicks, p.earned);
 		p.beaten.merge(b.key, 1, Integer::sum);
 		p.bossClock = 0;
 		p.nextBoss = interval(sp.getRandom());
@@ -548,14 +635,18 @@ final class UkBosses {
 		sp.sendSystemMessage(Component.literal(String.format(Locale.ROOT, "[Ultracraft] %s defeated: %s, and its loot dropped. Bosses beaten: %d.",
 			b.name, paid, p.bossesBeaten())).withStyle(ChatFormatting.GOLD));
 		UcNet.send(sp, "HUD <color=#FF4343>" + b.name + "</color> DEFEATED. " + paid);
+		recap(sp, p, b, recordKey, ownRun, ownResult);
 		// every other V1 who was there takes the same prize
 		for (ServerPlayer o : level.getServer().getPlayerList().getPlayers()) {
 			if (o == sp || !UcNet.isV1(o) || o.level() != level || o.position().distanceTo(drop) > 96.0) continue;
 			UkProgress op = UkProgress.get(o);
+			RecordRun run = runs.get(o.getUUID());
+			BossRecords.Result result = run == null ? null : run.result(clearTicks, op.earned);
 			op.beaten.merge(b.key, 1, Integer::sum);
 			op.award(pay);
 			title(o, Component.literal(b.name).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), Component.literal("DEFEATED   " + paid).withStyle(ChatFormatting.YELLOW), 5, 80, 20);
 			UcNet.send(o, "HUD <color=#FF4343>" + b.name + "</color> DEFEATED. " + paid);
+			recap(o, op, b, recordKey, run, result);
 		}
 		target = null;
 		if (arenaCleared != null) arenaCleared.run();
@@ -590,6 +681,7 @@ final class UkBosses {
 	}
 
 	private static void cancel(ServerPlayer sp, String why) {
+		clearRecordRuns();
 		phase = Phase.IDLE;
 		boss = null;
 		UkProgress p = UkProgress.get(sp);

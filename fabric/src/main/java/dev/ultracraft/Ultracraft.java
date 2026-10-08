@@ -165,6 +165,7 @@ public final class Ultracraft implements ClientModInitializer {
 		BlockEntityRenderers.register(UltracraftCommon.UK_SHOP_ENTITY, UkShopRenderer::new);
 		BloodStains.register();
 		UcSettingsScreen.register();
+		UcTitleMenu.register();
 		UkLauncher.register();
 		// the V1 layer replaces Minecraft's own HUD while active; with Minecraft hands out, the hotbar and what goes
 		// with items (hunger, armour, air, XP, the item's name, effects, the crosshair with its attack cooldown) come
@@ -482,6 +483,9 @@ public final class Ultracraft implements ClientModInitializer {
 		} else if (!inWorld && mc.player != null) {
 			// into a world: its own P, gear and upgrades, straight away
 			inWorld = true;
+			// A new world gets one automatic V1 attempt. Do not reset this while staying in the same world:
+			// pressing F8 to play as Steve remains the player's choice.
+			if (!active) autoPending = true;
 			if (UkLink.connected) UcNet.toServer("PROGRESS");
 		}
 		if (p == null || mc.level == null) return;
@@ -750,7 +754,11 @@ public final class Ultracraft implements ClientModInitializer {
 
 	private static void handle(Minecraft mc, String msg) {
 		if (msg.equals("READY") && mc.player != null && mc.player.connection != null) {
-			mc.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal("[Ultracraft] ULTRAKILL is ready. Press F8 to become V1."));
+			mc.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal("[Ultracraft] ULTRAKILL is ready. "
+				+ (UltracraftConfig.autoV1 ? "V1 will activate automatically." : "Press F8 to become V1.")));
+			// READY may arrive after the player has already joined; the normal tick performs the transition when the
+			// loading screen is gone. This also covers a bridge restart without requiring another world join.
+			if (UltracraftConfig.autoV1 && mc.level != null && !active) autoPending = true;
 			UcCheats.sendServer();
 		} else if (msg.equals("CONNECTED")) {
 			// a (re)started ULTRAKILL needs our window size again, and whether we're paused

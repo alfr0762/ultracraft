@@ -99,13 +99,15 @@ public final class UltracraftConfig {
 	public static boolean extraGore = true;
 	/** How far (blocks) Minecraft's terrain goes to ULTRAKILL for its walls and floors (beyond: no collision, no hiding). */
 	public static int terrainRange = 128;
+	/** Original terminal artwork and layout over Minecraft's real title menu. */
+	public static boolean terminalMenu = true;
 	/** Cheats (UcCheats) switched on: id -> on. */
 	public static final Map<String, Boolean> cheats = new TreeMap<>();
 
 	private static final String[] KEYS = {"v1Height", "autoV1", "ukSpawns", "mcMobs", "sharpShop", "grindBest", "bosses", "bossMinutes", "bossDifficulty", "traitChance", "bossWarnSeconds",
 		"allGear", "playerBlockDamage", "enemyBlockDamage", "impactFrames", "launchUltrakill", "opShop", "ukFpsCap", "steveEnemies", "fightMusic", "bossThemes",
 		"calmMusic", "hushMcMusic", "styleRewards", "arenas", "grindArenas", "lockStep", "lowLatency",
-		"effects", "stainCap", "extraGore", "terrainRange", "ultrakillDir", "setupUltrakill", "teammateMarkers"};
+		"effects", "stainCap", "extraGore", "terrainRange", "ultrakillDir", "setupUltrakill", "teammateMarkers", "terminalMenu"};
 
 	private static final String COMMENT = "Ultracraft (most of this is on the Ultracraft settings screen): v1Height = ULTRAKILL render height (0 = full window, lower = faster);"
 		+ " autoV1 = become V1 automatically; ukSpawns = ULTRAKILL's enemies spawn in the dark; mcMobs = Minecraft's monsters spawn;"
@@ -115,7 +117,7 @@ public final class UltracraftConfig {
 		+ " launchUltrakill = start ULTRAKILL with Minecraft; opShop = upgrades go to 1500%; uk.* = ULTRAKILL settings used while playing Ultracraft;"
 		+ " fightMusic = off, random or a song of ULTRAKILL's soundtrack; cheat.* = cheats on; arenas = ULTRAKILL arenas generate in new chunks; grindArenas = the Cyber Grind runs through its own 50 arenas; lockStep = Minecraft waits for ULTRAKILL's frames;"
 		+ " effects = 2 high, 1 medium, 0 low; stainCap = blood stains kept on blocks (0 none); extraGore = Ultracraft's extra death blood; terrainRange = blocks of terrain sent to ULTRAKILL (64-128);"
-		+ " ultrakillDir = ULTRAKILL's folder, only if Ultracraft can't find it through Steam (it sets up BepInEx and the UltraBridge plugin there); setupUltrakill = you let Ultracraft set ULTRAKILL up (and keep its plugin up to date); teammateMarkers = the other players' names and health over ULTRAKILL's view";
+		+ " ultrakillDir = ULTRAKILL's folder, only if Ultracraft can't find it through Steam (it sets up BepInEx and the UltraBridge plugin there); setupUltrakill = you let Ultracraft set ULTRAKILL up (and keep its plugin up to date); teammateMarkers = the other players' names and health over ULTRAKILL's view; terminalMenu = original terminal artwork and layout on the main menu";
 
 	private UltracraftConfig() {}
 
@@ -177,6 +179,7 @@ public final class UltracraftConfig {
 			ultrakillDir = p.getProperty("ultrakillDir", ultrakillDir).trim();
 			setupUltrakill = bool(p, "setupUltrakill", setupUltrakill);
 			teammateMarkers = bool(p, "teammateMarkers", teammateMarkers);
+			terminalMenu = bool(p, "terminalMenu", terminalMenu);
 			bossThemes = bool(p, "bossThemes", bossThemes);
 			calmMusic = bool(p, "calmMusic", calmMusic);
 			hushMcMusic = bool(p, "hushMcMusic", hushMcMusic);
@@ -231,6 +234,7 @@ public final class UltracraftConfig {
 		p.setProperty("ultrakillDir", ultrakillDir);
 		p.setProperty("setupUltrakill", Boolean.toString(setupUltrakill));
 		p.setProperty("teammateMarkers", Boolean.toString(teammateMarkers));
+		p.setProperty("terminalMenu", Boolean.toString(terminalMenu));
 		p.setProperty("bossThemes", Boolean.toString(bossThemes));
 		p.setProperty("calmMusic", Boolean.toString(calmMusic));
 		p.setProperty("hushMcMusic", Boolean.toString(hushMcMusic));

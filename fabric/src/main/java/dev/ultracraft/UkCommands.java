@@ -28,6 +28,7 @@ import net.minecraft.server.level.ServerPlayer;
  * /uc upgrades max|reset|list
  * /uc upgrades set &lt;upgrade&gt; &lt;level&gt;  (rev.power, arm0.reflex, rock.payload...)
  * /uc settings                  the settings screen
+ * /uc records [page]            your fastest boss clears in this world
  * /uc boss call &lt;boss|next&gt; [seconds of warning]
  * /uc boss kill|leave|list|status
  * /uc boss timer &lt;minutes&gt;      the next boss after that much play
@@ -110,6 +111,9 @@ final class UkCommands {
 						p.sendUpgrades();
 						return say(c, UkUpgrades.name(key) + " is level " + p.level(key) + " of " + UkUpgrades.TRACKS.get(key).max() + ".");
 					})))))
+			.then(Commands.literal("records")
+				.executes(c -> records(c, 1))
+				.then(Commands.argument("page", IntegerArgumentType.integer(1)).executes(c -> records(c, IntegerArgumentType.getInteger(c, "page")))))
 			.then(Commands.literal("settings").executes(c -> {
 				// the settings screen is Minecraft's (client side): open it on the next frame, in the game of whoever asked
 				// (a player on someone else's world: their own, not the host's)
@@ -252,8 +256,32 @@ final class UkCommands {
 		return why != null ? fail(c, why) : yes ? 1 : say(c, "Duel declined.");
 	}
 
+	/** Every player can inspect their own records; the command never reads another player's progress or changes it. */
+	private static int records(CommandContext<CommandSourceStack> c, int page) throws CommandSyntaxException {
+		var entries = new ArrayList<>(UkProgress.get(player(c)).bossRecords.entries().entrySet());
+		if (entries.isEmpty()) {
+			c.getSource().sendSuccess(() -> Component.translatable("ultracraft.records.empty").withStyle(ChatFormatting.GRAY), false);
+			return 1;
+		}
+		int perPage = 8, pages = (entries.size() + perPage - 1) / perPage;
+		if (page > pages) {
+			c.getSource().sendFailure(Component.translatable("ultracraft.records.no_page", pages));
+			return 0;
+		}
+		c.getSource().sendSuccess(() -> Component.translatable("ultracraft.records.header", entries.size(), page, pages).withStyle(ChatFormatting.GOLD), false);
+		for (int n = (page - 1) * perPage; n < Math.min(page * perPage, entries.size()); n++) {
+			var entry = entries.get(n);
+			BossRecords.Result result = entry.getValue();
+			Component text = Component.translatable("ultracraft.records.entry", UkBosses.recordLabel(entry.getKey()), BossRecords.time(result.ticks()),
+				BossRecords.rank(result.peakStyle()), String.format(Locale.ROOT, "%,d", result.earnedP())).withStyle(ChatFormatting.GRAY);
+			c.getSource().sendSuccess(() -> text, false);
+		}
+		if (page < pages) c.getSource().sendSuccess(() -> Component.translatable("ultracraft.records.next_page", page + 1).withStyle(ChatFormatting.YELLOW), false);
+		return 1;
+	}
+
 	private static int help(CommandContext<CommandSourceStack> c) {
-		return say(c, "/uc p [give <player> <amount>|add|take|set <amount>]\n/uc weapons all|none|list|give <gear>|take <gear>\n/uc upgrades max|reset|list|set <upgrade> <level>\n/uc settings"
+		return say(c, "/uc p [give <player> <amount>|add|take|set <amount>]\n/uc weapons all|none|list|give <gear>|take <gear>\n/uc upgrades max|reset|list|set <upgrade> <level>\n/uc settings\n/uc records [page]"
 			+ "\n/uc boss call <boss|next> [seconds] [mods,difficulty]\n/uc boss kill|leave|list|status|timer <minutes>\n/uc bosses on|off\n/uc grind start|join|leave|arena <1-50>|stop\n/uc duel <player>|accept|decline|forfeit");
 	}
 

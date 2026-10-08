@@ -185,7 +185,9 @@ public final class UcSettingsScreen extends OptionsSubScreen {
 	}
 
 	private static void gameplay(Category c) {
-		c.add(bool("Become V1 Automatically", "Become V1 as soon as ULTRAKILL is ready (otherwise F8).", UltracraftConfig.autoV1, v -> UltracraftConfig.autoV1 = v),
+		c.add(bool(Component.translatable("ultracraft.menu.setting").getString(), Component.translatable("ultracraft.menu.setting.tooltip").getString(),
+				UltracraftConfig.terminalMenu, v -> UltracraftConfig.terminalMenu = v),
+			bool("Become V1 Automatically", "Become V1 as soon as ULTRAKILL is ready (otherwise F8).", UltracraftConfig.autoV1, v -> UltracraftConfig.autoV1 = v),
 			bool("V1 Breaks Blocks", "V1's guns, punches, slams and blasts break blocks.", UltracraftConfig.playerBlockDamage, v -> UltracraftConfig.playerBlockDamage = v),
 			bool("Enemies Break Blocks", "ULTRAKILL's enemies' shots, beams, blasts and fire break blocks.", UltracraftConfig.enemyBlockDamage,
 				v -> UltracraftConfig.enemyBlockDamage = v),
