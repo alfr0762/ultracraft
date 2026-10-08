@@ -34,6 +34,7 @@ final class StyleRewards {
 	static void rank(ServerPlayer sp, int rank) {
 		ServerOps.State st = ServerOps.state(sp);
 		st.rank = Math.max(0, Math.min(7, rank));
+		UkBosses.style(sp, st.rank);
 		if (st.rank >= S || st.streak == 0) return;
 		if (st.streak >= 5) sp.displayClientMessage(Component.literal("STYLE STREAK OVER: x" + st.streak).withStyle(ChatFormatting.GRAY), true);
 		st.streak = 0;
